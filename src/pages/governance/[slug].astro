@@ -1,0 +1,360 @@
+---
+import { getCollection } from 'astro:content';
+import PageLayout from '@layouts/PageLayout.astro';
+
+export async function getStaticPaths() {
+  const governanceDocs = await getCollection('governance');
+  return governanceDocs.map((doc) => ({
+    params: { slug: doc.slug },
+    props: { doc },
+  }));
+}
+
+const { doc } = Astro.props;
+const { Content } = await doc.render();
+
+// Get all governance docs for navigation
+const allDocs = await getCollection('governance');
+const sortedDocs = allDocs.sort(
+  (a, b) => (a.data.order || 999) - (b.data.order || 999)
+);
+
+// Find prev/next in same category
+const sameCategory = sortedDocs.filter(
+  (d) => d.data.category === doc.data.category
+);
+const currentIndex = sameCategory.findIndex((d) => d.slug === doc.slug);
+const prevDoc = currentIndex > 0 ? sameCategory[currentIndex - 1] : null;
+const nextDoc =
+  currentIndex < sameCategory.length - 1 ? sameCategory[currentIndex + 1] : null;
+
+const categoryLabels: Record<string, string> = {
+  overview: 'Overview',
+  'decision-making': 'Decision Making',
+  membership: 'Membership',
+  contribution: 'Contribution',
+  funding: 'Funding',
+  transparency: 'Transparency',
+  legal: 'Legal',
+};
+---
+
+<PageLayout title={doc.data.title} description={doc.data.summary}>
+  <article class="governance-doc">
+    <div class="container">
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/governance">Governance</a>
+        <span aria-hidden="true">→</span>
+        <span>{categoryLabels[doc.data.category] || doc.data.category}</span>
+      </nav>
+
+      <!-- Header -->
+      <header class="doc-header">
+        <div class="doc-meta">
+          <span class="category-badge">
+            {categoryLabels[doc.data.category] || doc.data.category}
+          </span>
+          {
+            doc.data.status && doc.data.status !== 'current' && (
+              <span class={`status-badge status-${doc.data.status}`}>
+                {doc.data.status}
+              </span>
+            )
+          }
+        </div>
+        <h1>{doc.data.title}</h1>
+        <p class="summary">{doc.data.summary}</p>
+        <div class="doc-info">
+          <time datetime={doc.data.lastUpdated.toISOString()}>
+            Last updated:{' '}
+            {doc.data.lastUpdated.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </time>
+          {
+            doc.data.approvedBy && (
+              <span class="approved-by">
+                Approved by: {doc.data.approvedBy}
+              </span>
+            )
+          }
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="doc-content">
+        <Content />
+      </div>
+
+      <!-- Change History -->
+      {
+        doc.data.changeHistory && doc.data.changeHistory.length > 0 && (
+          <aside class="change-history">
+            <h2>Change History</h2>
+            <ul>
+              {doc.data.changeHistory.map((change) => (
+                <li>
+                  <time datetime={change.date.toISOString()}>
+                    {change.date.toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </time>
+                  <span>{change.description}</span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )
+      }
+
+      <!-- Navigation -->
+      <nav class="doc-nav" aria-label="Document navigation">
+        {
+          prevDoc ? (
+            <a href={`/governance/${prevDoc.slug}`} class="nav-link prev">
+              <span class="nav-label">Previous</span>
+              <span class="nav-title">{prevDoc.data.title}</span>
+            </a>
+          ) : (
+            <div />
+          )
+        }
+        {
+          nextDoc ? (
+            <a href={`/governance/${nextDoc.slug}`} class="nav-link next">
+              <span class="nav-label">Next</span>
+              <span class="nav-title">{nextDoc.data.title}</span>
+            </a>
+          ) : (
+            <div />
+          )
+        }
+      </nav>
+
+      <!-- Back to Governance -->
+      <div class="back-link">
+        <a href="/governance">← Back to Governance</a>
+      </div>
+    </div>
+  </article>
+</PageLayout>
+
+<style>
+  .governance-doc {
+    padding: var(--space-8) 0;
+  }
+
+  .container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+  }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-6);
+  }
+
+  .breadcrumb a {
+    color: var(--color-accent-primary);
+  }
+
+  /* Header */
+  .doc-header {
+    max-width: 720px;
+    margin-bottom: var(--space-8);
+  }
+
+  .doc-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .category-badge {
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    text-transform: capitalize;
+  }
+
+  .status-badge {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .status-draft {
+    background-color: rgba(234, 179, 8, 0.15);
+    color: #ca8a04;
+  }
+
+  .status-archived {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-tertiary);
+  }
+
+  .doc-header h1 {
+    margin-bottom: var(--space-4);
+  }
+
+  .summary {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-4);
+  }
+
+  .doc-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+  }
+
+  /* Content */
+  .doc-content {
+    max-width: 720px;
+    margin-bottom: var(--space-8);
+  }
+
+  .doc-content :global(h2) {
+    margin-top: var(--space-8);
+    margin-bottom: var(--space-4);
+  }
+
+  .doc-content :global(h3) {
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-3);
+  }
+
+  .doc-content :global(ul),
+  .doc-content :global(ol) {
+    margin-bottom: var(--space-4);
+  }
+
+  .doc-content :global(li) {
+    margin-bottom: var(--space-2);
+  }
+
+  /* Change History */
+  .change-history {
+    max-width: 720px;
+    padding: var(--space-5);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-8);
+  }
+
+  .change-history h2 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-4);
+  }
+
+  .change-history ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .change-history li {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+  }
+
+  .change-history li:last-child {
+    border-bottom: none;
+  }
+
+  .change-history time {
+    flex-shrink: 0;
+    color: var(--color-text-tertiary);
+    min-width: 100px;
+  }
+
+  /* Navigation */
+  .doc-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    max-width: 720px;
+    margin-bottom: var(--space-6);
+  }
+
+  .nav-link {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+  }
+
+  .nav-link:hover {
+    border-color: var(--color-accent-primary);
+    text-decoration: none;
+  }
+
+  .nav-link.next {
+    text-align: right;
+  }
+
+  .nav-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-1);
+  }
+
+  .nav-title {
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  /* Back Link */
+  .back-link {
+    max-width: 720px;
+  }
+
+  .back-link a {
+    font-size: var(--text-sm);
+    color: var(--color-accent-primary);
+  }
+
+  @media (max-width: 768px) {
+    .doc-nav {
+      grid-template-columns: 1fr;
+    }
+
+    .nav-link.next {
+      text-align: left;
+    }
+
+    .doc-info {
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+  }
+</style>
+

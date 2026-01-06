@@ -1,0 +1,414 @@
+---
+import { getCollection } from 'astro:content';
+import PageLayout from '@layouts/PageLayout.astro';
+import Badge from '@components/ui/Badge.astro';
+import Card from '@components/ui/Card.astro';
+
+export async function getStaticPaths() {
+  const useCases = await getCollection('use-cases');
+  return useCases.map((uc) => ({
+    params: { slug: uc.slug },
+    props: { useCase: uc },
+  }));
+}
+
+const { useCase } = Astro.props;
+const { Content } = await useCase.render();
+
+// Get related features
+const allFeatures = await getCollection('features');
+const relatedFeatures = useCase.data.relatedFeatures
+  ? allFeatures.filter((f) => useCase.data.relatedFeatures?.includes(f.slug))
+  : [];
+
+// Get related case studies
+const allCaseStudies = await getCollection('case-studies');
+const relatedCaseStudies = useCase.data.relatedCaseStudies
+  ? allCaseStudies.filter((cs) =>
+      useCase.data.relatedCaseStudies?.includes(cs.slug)
+    )
+  : [];
+
+// Get other use cases for navigation
+const allUseCases = await getCollection('use-cases');
+const otherUseCases = allUseCases
+  .filter((uc) => uc.slug !== useCase.slug && !uc.data.draft)
+  .sort((a, b) => (a.data.order || 999) - (b.data.order || 999))
+  .slice(0, 3);
+
+const industryLabels: Record<string, string> = {
+  government: 'Government',
+  research: 'Research',
+  'urban-planning': 'Urban Planning',
+  defense: 'Defense',
+  environment: 'Environment',
+  transportation: 'Transportation',
+  utilities: 'Utilities',
+  'real-estate': 'Real Estate',
+  'cultural-heritage': 'Cultural Heritage',
+  general: 'General',
+};
+---
+
+<PageLayout title={useCase.data.title} description={useCase.data.summary}>
+  <article class="use-case-page">
+    <div class="container">
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/use-cases">Use Cases</a>
+        <span aria-hidden="true">→</span>
+        <span>{industryLabels[useCase.data.industry] || useCase.data.industry}</span>
+      </nav>
+
+      <!-- Header -->
+      <header class="page-header">
+        <div class="header-meta">
+          <Badge audience={useCase.data.audience} />
+          <span class="industry-tag">
+            {industryLabels[useCase.data.industry] || useCase.data.industry}
+          </span>
+          <span class={`complexity complexity-${useCase.data.complexity}`}>
+            {useCase.data.complexity}
+          </span>
+        </div>
+        <h1>{useCase.data.title}</h1>
+        <p class="summary">{useCase.data.summary}</p>
+      </header>
+
+      <!-- Key Info Cards -->
+      <div class="info-cards">
+        {
+          useCase.data.problem && (
+            <div class="info-card problem">
+              <h2>The Problem</h2>
+              <p>{useCase.data.problem}</p>
+            </div>
+          )
+        }
+        {
+          useCase.data.solution && (
+            <div class="info-card solution">
+              <h2>The Solution</h2>
+              <p>{useCase.data.solution}</p>
+            </div>
+          )
+        }
+      </div>
+
+      <!-- Typical Data Sources -->
+      {
+        useCase.data.typicalDataSources &&
+          useCase.data.typicalDataSources.length > 0 && (
+            <aside class="data-sources">
+              <h2>Typical Data Sources</h2>
+              <ul>
+                {useCase.data.typicalDataSources.map((source) => (
+                  <li>{source}</li>
+                ))}
+              </ul>
+            </aside>
+          )
+      }
+
+      <!-- Main Content -->
+      <div class="content">
+        <Content />
+      </div>
+
+      <!-- Related Features -->
+      {
+        relatedFeatures.length > 0 && (
+          <section class="related-section">
+            <h2>Related Features</h2>
+            <div class="related-grid">
+              {relatedFeatures.map((feature) => (
+                <Card href={`/features/${feature.slug}`}>
+                  <h3>{feature.data.title}</h3>
+                  <p>{feature.data.summary}</p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      <!-- Related Case Studies -->
+      {
+        relatedCaseStudies.length > 0 && (
+          <section class="related-section">
+            <h2>See It In Action</h2>
+            <div class="related-grid">
+              {relatedCaseStudies.map((study) => (
+                <Card href={`/case-studies/${study.slug}`}>
+                  <h3>{study.data.organization}</h3>
+                  <p>{study.data.useCase}</p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      <!-- Other Use Cases -->
+      {
+        otherUseCases.length > 0 && (
+          <section class="related-section">
+            <h2>Explore Other Use Cases</h2>
+            <div class="related-grid">
+              {otherUseCases.map((uc) => (
+                <Card href={`/use-cases/${uc.slug}`}>
+                  <span class="industry-tag small">
+                    {industryLabels[uc.data.industry] || uc.data.industry}
+                  </span>
+                  <h3>{uc.data.title}</h3>
+                  <p>{uc.data.summary}</p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      <!-- Back Link -->
+      <div class="back-link">
+        <a href="/use-cases">← Back to Use Cases</a>
+      </div>
+    </div>
+  </article>
+</PageLayout>
+
+<style>
+  .use-case-page {
+    padding: var(--space-8) 0;
+  }
+
+  .container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+  }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-6);
+  }
+
+  .breadcrumb a {
+    color: var(--color-accent-primary);
+  }
+
+  /* Header */
+  .page-header {
+    max-width: 800px;
+    margin-bottom: var(--space-8);
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .industry-tag {
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .industry-tag.small {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-2);
+  }
+
+  .complexity {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: capitalize;
+  }
+
+  .complexity-beginner {
+    background-color: rgba(22, 163, 74, 0.15);
+    color: var(--color-success);
+  }
+
+  .complexity-intermediate {
+    background-color: rgba(234, 179, 8, 0.15);
+    color: #ca8a04;
+  }
+
+  .complexity-advanced {
+    background-color: var(--color-accent-light);
+    color: var(--color-accent-primary);
+  }
+
+  .page-header h1 {
+    margin-bottom: var(--space-4);
+  }
+
+  .summary {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+  }
+
+  /* Info Cards */
+  .info-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--space-5);
+    margin-bottom: var(--space-8);
+  }
+
+  .info-card {
+    padding: var(--space-5);
+    border-radius: var(--radius-lg);
+  }
+
+  .info-card.problem {
+    background-color: rgba(239, 68, 68, 0.05);
+    border-left: 4px solid var(--color-error);
+  }
+
+  .info-card.solution {
+    background-color: rgba(22, 163, 74, 0.05);
+    border-left: 4px solid var(--color-success);
+  }
+
+  .info-card h2 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-3);
+  }
+
+  .info-card p {
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+    margin: 0;
+  }
+
+  /* Data Sources */
+  .data-sources {
+    padding: var(--space-5);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-8);
+    max-width: 720px;
+  }
+
+  .data-sources h2 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-3);
+  }
+
+  .data-sources ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .data-sources li {
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-bg-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+  }
+
+  /* Content */
+  .content {
+    max-width: 720px;
+    margin-bottom: var(--space-8);
+  }
+
+  .content :global(h2) {
+    margin-top: var(--space-8);
+    margin-bottom: var(--space-4);
+  }
+
+  .content :global(h3) {
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-3);
+  }
+
+  .content :global(ul),
+  .content :global(ol) {
+    margin-bottom: var(--space-4);
+  }
+
+  .content :global(li) {
+    margin-bottom: var(--space-2);
+  }
+
+  .content :global(pre) {
+    margin: var(--space-4) 0;
+    padding: var(--space-4);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+  }
+
+  /* Related Sections */
+  .related-section {
+    margin-bottom: var(--space-8);
+  }
+
+  .related-section h2 {
+    margin-bottom: var(--space-5);
+  }
+
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .related-grid h3 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-2);
+  }
+
+  .related-grid p {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  /* Back Link */
+  .back-link {
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .back-link a {
+    font-size: var(--text-sm);
+    color: var(--color-accent-primary);
+  }
+
+  @media (max-width: 768px) {
+    .info-cards {
+      grid-template-columns: 1fr;
+    }
+
+    .related-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .header-meta {
+      gap: var(--space-2);
+    }
+  }
+</style>
+

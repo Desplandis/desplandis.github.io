@@ -1,0 +1,58 @@
+# Preview deployment for pull requests
+# Creates a preview build artifact that can be downloaded and tested locally
+# For actual preview URLs, configure with Netlify, Cloudflare Pages, or Vercel
+
+name: Preview
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: preview-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    name: Build Preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build site
+        run: npm run build
+        env:
+          # Set preview-specific environment variables if needed
+          SITE_URL: https://preview.itowns.org
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-${{ github.event.pull_request.number }}
+          path: dist/
+          retention-days: 3
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Preview build ready!**\n\nDownload the build artifact from [this workflow run](${artifactUrl}) to preview the changes locally.\n\n\`\`\`bash\n# After downloading and extracting:\nnpx serve dist/\n\`\`\``
+            });
+
