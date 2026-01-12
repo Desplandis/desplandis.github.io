@@ -7,10 +7,6 @@ tags: ["technical", "performance", "3d-tiles"]
 draft: false
 featured: true
 author: "Technical Team"
-# Cover image (optional)
-image: "/images/blog/3d-tiles-performance.jpg"
-imageCaptionTitle: "3D Tiles Performance"
-imageCaptionDescription: "Optimizing large-scale urban datasets"
 ---
 
 This post is a technical deep-dive for developers implementing iTowns with large 3D Tiles datasets. We'll cover loading strategies, caching patterns, and performance benchmarks.

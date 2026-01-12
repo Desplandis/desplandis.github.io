@@ -21,11 +21,23 @@ export function generateExcerpt(content: string, maxLength = 160): string {
 }
 
 /**
- * Calculate reading time in minutes
+ * Calculate reading time in minutes from raw markdown content
  */
 export function calculateReadingTime(content: string): number {
   const wordsPerMinute = 200;
   const words = content.trim().split(/\s+/).length;
+  return Math.ceil(words / wordsPerMinute);
+}
+
+/**
+ * Calculate reading time from rendered HTML content
+ * Strips HTML tags and counts words
+ */
+export function calculateReadingTimeFromHtml(html: string): number {
+  const wordsPerMinute = 200;
+  // Strip HTML tags
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = text.split(/\s+/).filter(word => word.length > 0).length;
   return Math.ceil(words / wordsPerMinute);
 }
 

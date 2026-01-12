@@ -1,0 +1,561 @@
+---
+import DefaultLayout from './DefaultLayout.astro';
+import Header from '@components/layout/Header.astro';
+import Footer from '@components/layout/Footer.astro';
+import Container from '@components/ui/Container.astro';
+import Tag from '@components/ui/Tag.astro';
+import { formatDate } from '@utils/dates';
+import { getAuthor } from '@data/authors';
+
+interface BlogPost {
+  slug: string;
+  data: {
+    title: string;
+    summary: string;
+    publishDate: Date;
+    author?: string;
+    image?: string;
+    tags: string[];
+  };
+}
+
+interface Props {
+  title?: string;
+  description?: string;
+  posts: BlogPost[];
+  allTags?: string[];
+  currentTag?: string;
+  currentAudience?: string;
+  // Pagination
+  currentPage?: number;
+  totalPages?: number;
+  baseUrl?: string;
+}
+
+const {
+  title = 'Blog',
+  description = 'Keep up-to-date with the latest updates and announcements.',
+  posts,
+  allTags = [],
+  currentTag,
+  currentAudience,
+  currentPage = 1,
+  totalPages = 1,
+  baseUrl = '/blog',
+} = Astro.props;
+
+// Generate pagination links
+const hasPrevPage = currentPage > 1;
+const hasNextPage = currentPage < totalPages;
+const prevPageUrl = currentPage === 2 ? baseUrl : `${baseUrl}/page/${currentPage - 1}`;
+const nextPageUrl = `${baseUrl}/page/${currentPage + 1}`;
+
+// Generate page trail (show max 5 pages around current)
+const pageTrail: number[] = [];
+const maxPages = 5;
+const startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+const endPage = Math.min(totalPages, startPage + maxPages - 1);
+for (let i = startPage; i <= endPage; i++) {
+  pageTrail.push(i);
+}
+---
+
+<DefaultLayout title={title} description={description}>
+  <Header />
+
+  <main id="main-content">
+    <!-- Head Section -->
+    <div class="head">
+      <Container>
+        <div class="head-main">
+          <h1 class="intro-title">{title}</h1>
+          <form class="search-bar" method="get" action="https://duckduckgo.com/">
+            <input type="hidden" name="sites" value="itowns.org/blog" />
+            <input
+              type="text"
+              name="q"
+              maxlength="300"
+              placeholder="Search articles"
+              aria-label="Search articles"
+            />
+            <button class="search-btn" type="submit" aria-label="Search">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </Container>
+    </div>
+
+    <Container>
+      <!-- Categories / Tags -->
+      {allTags.length > 0 && (
+        <nav class="tags-filter" aria-label="Filter by category">
+          <h3>Categories</h3>
+          <a href="/blog" class:list={['tag-link', { active: !currentTag && !currentAudience }]}>
+            <Tag>All</Tag>
+          </a>
+          {allTags.map((tag) => (
+            <a
+              href={`/blog/tag/${tag}`}
+              class:list={['tag-link', { active: currentTag === tag }]}
+              title={`Filter by ${tag}`}
+            >
+              <Tag>{tag}</Tag>
+            </a>
+          ))}
+        </nav>
+      )}
+
+      {currentTag && (
+        <p class="filter-indicator">
+          Filtered by: <strong>{currentTag}</strong>
+          <a href="/blog" class="clear-filter">Clear filter</a>
+        </p>
+      )}
+
+      <!-- Pagination (Top) -->
+      {totalPages > 1 && (
+        <nav class="pagination" aria-label="Blog pagination">
+          {hasPrevPage && (
+            <a class="pagination-previous" href={prevPageUrl}>← Previous</a>
+          )}
+
+          {pageTrail.map((page) => (
+            <a
+              class:list={['pagination-page', { active: page === currentPage }]}
+              href={page === 1 ? baseUrl : `${baseUrl}/page/${page}`}
+              aria-current={page === currentPage ? 'page' : undefined}
+            >
+              {page}
+            </a>
+          ))}
+
+          {hasNextPage && (
+            <a class="pagination-next" href={nextPageUrl}>Next →</a>
+          )}
+        </nav>
+      )}
+
+      <!-- Posts Grid -->
+      {posts.length > 0 ? (
+        <div class="posts">
+          {posts.map((post) => {
+            const authorInfo = getAuthor(post.data.author);
+            const hasImage = !!post.data.image;
+            return (
+              <a href={`/blog/${post.slug}`} class="article-card-link">
+                <article class:list={['article-card', { 'no-thumbnail': !hasImage }]}>
+                  <div
+                    class="thumbnail"
+                    style={hasImage ? `background-image: url('${post.data.image}');` : undefined}
+                  />
+                  <div class="content">
+                    <div class="info">
+                      <img
+                        class="avatar"
+                        width="25"
+                        height="25"
+                        src={authorInfo.image}
+                        alt={authorInfo.name}
+                        loading="lazy"
+                      />
+                      <span class="by">{authorInfo.name}</span>
+                      <span class="date">
+                        &nbsp;-&nbsp;{formatDate(post.data.publishDate)}
+                      </span>
+                    </div>
+                    <h3>{post.data.title}</h3>
+                    <p class="excerpt">{post.data.summary}</p>
+                  </div>
+                </article>
+              </a>
+            );
+          })}
+        </div>
+      ) : (
+        <div class="no-posts">
+          <p>No posts found.</p>
+          {currentTag && (
+            <p class="no-posts-sub">
+              Try <a href="/blog">viewing all posts</a> or selecting a different category.
+            </p>
+          )}
+        </div>
+      )}
+
+      <!-- Pagination (Bottom) -->
+      {totalPages > 1 && (
+        <nav class="pagination pagination-bottom" aria-label="Blog pagination">
+          {hasPrevPage && (
+            <a class="pagination-previous" href={prevPageUrl}>← Previous</a>
+          )}
+
+          {pageTrail.map((page) => (
+            <a
+              class:list={['pagination-page', { active: page === currentPage }]}
+              href={page === 1 ? baseUrl : `${baseUrl}/page/${page}`}
+              aria-current={page === currentPage ? 'page' : undefined}
+            >
+              {page}
+            </a>
+          ))}
+
+          {hasNextPage && (
+            <a class="pagination-next" href={nextPageUrl}>Next →</a>
+          )}
+        </nav>
+      )}
+
+      <!-- Subscribe/RSS -->
+      <section class="subscribe-section">
+        <h2>Stay Updated</h2>
+        <p>
+          Subscribe via RSS to receive updates on framework development,
+          governance decisions, and community news.
+        </p>
+        <a href="/rss.xml" class="rss-link">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <circle cx="6.18" cy="17.82" r="2.18"></circle>
+            <path d="M4 4.44v2.83c7.03 0 12.73 5.7 12.73 12.73h2.83c0-8.59-6.97-15.56-15.56-15.56zm0 5.66v2.83c3.9 0 7.07 3.17 7.07 7.07h2.83c0-5.47-4.43-9.9-9.9-9.9z"></path>
+          </svg>
+          RSS Feed
+        </a>
+      </section>
+    </Container>
+  </main>
+
+  <Footer />
+</DefaultLayout>
+
+<style>
+  /* Head Section */
+  .head {
+    background-color: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .head-main {
+    display: grid;
+    gap: var(--space-6);
+    padding: var(--space-5) 0 var(--space-6);
+  }
+
+  .head-main .intro-title {
+    margin: 0;
+    font-size: var(--text-4xl);
+  }
+
+  @media (min-width: 902px) {
+    .head-main {
+      height: 120px;
+      grid-template-columns: 1fr 1fr;
+      align-content: center;
+      padding: 0;
+    }
+
+    .head-main .search-bar {
+      margin-top: 6px;
+      justify-self: end;
+    }
+  }
+
+  /* Search Bar */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    max-width: 300px;
+  }
+
+  .search-bar input[type="text"] {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    font-size: var(--text-sm);
+    background: var(--color-bg-primary);
+  }
+
+  .search-bar input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-accent-primary);
+  }
+
+  .search-btn {
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-accent-primary);
+    color: white;
+    border: 1px solid var(--color-accent-primary);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color var(--transition-fast);
+  }
+
+  .search-btn:hover {
+    background: var(--color-accent-hover);
+  }
+
+  /* Tags Filter */
+  .tags-filter {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin: var(--space-6) 0;
+  }
+
+  .tags-filter h3 {
+    margin: 0;
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+  }
+
+  .tag-link {
+    text-decoration: none;
+    transition: opacity var(--transition-fast);
+  }
+
+  .tag-link:hover {
+    text-decoration: none;
+    opacity: 0.8;
+  }
+
+  .tag-link.active {
+    filter: saturate(0.75);
+  }
+
+  .filter-indicator {
+    margin-bottom: var(--space-5);
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+  }
+
+  .clear-filter {
+    margin-left: var(--space-2);
+    color: var(--color-accent-primary);
+    font-size: var(--text-sm);
+  }
+
+  /* Posts Grid */
+  .posts {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    margin: var(--space-6) 0;
+  }
+
+  @media (min-width: 768px) {
+    .posts {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .posts {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+  }
+
+  /* Article Card */
+  .article-card-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .article-card-link:hover {
+    text-decoration: none;
+  }
+
+  .article-card {
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .article-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .article-card .thumbnail {
+    height: 160px;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--color-bg-secondary);
+  }
+
+  .article-card.no-thumbnail .thumbnail {
+    background-image: linear-gradient(135deg, var(--color-accent-light) 0%, var(--color-bg-secondary) 100%);
+  }
+
+  .article-card .content {
+    padding: var(--space-4);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .article-card .info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+  }
+
+  .article-card .avatar {
+    border-radius: 100%;
+    background: transparent;
+  }
+
+  .article-card .by {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+  }
+
+  .article-card .date {
+    color: var(--color-text-tertiary);
+  }
+
+  .article-card h3 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-2);
+    color: var(--color-text-primary);
+    line-height: var(--leading-tight);
+  }
+
+  .article-card .excerpt {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: var(--space-6) 0;
+  }
+
+  .pagination-bottom {
+    margin-top: var(--space-8);
+  }
+
+  .pagination a {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    transition: all var(--transition-fast);
+  }
+
+  .pagination a:hover {
+    background: var(--color-bg-secondary);
+    text-decoration: none;
+  }
+
+  .pagination-page.active {
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+  }
+
+  .pagination-previous,
+  .pagination-next {
+    font-weight: 500;
+  }
+
+  /* No Posts */
+  .no-posts {
+    text-align: center;
+    padding: var(--space-8);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    margin: var(--space-6) 0;
+  }
+
+  .no-posts p {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-2);
+  }
+
+  .no-posts-sub {
+    font-size: var(--text-base);
+    color: var(--color-text-tertiary);
+  }
+
+  /* Subscribe Section */
+  .subscribe-section {
+    text-align: center;
+    padding: var(--space-6);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    margin: var(--space-8) 0;
+  }
+
+  .subscribe-section h2 {
+    font-size: var(--text-2xl);
+    margin-bottom: var(--space-3);
+  }
+
+  .subscribe-section p {
+    max-width: 600px;
+    margin: 0 auto var(--space-4);
+    color: var(--color-text-secondary);
+  }
+
+  .rss-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-accent-primary);
+    color: white;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+  }
+
+  .rss-link:hover {
+    background-color: var(--color-accent-hover);
+    text-decoration: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .head-main .intro-title {
+      font-size: var(--text-3xl);
+    }
+
+    .search-bar {
+      max-width: 100%;
+    }
+  }
+</style>

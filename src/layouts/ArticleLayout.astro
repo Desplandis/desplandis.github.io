@@ -4,24 +4,21 @@ import Header from '@components/layout/Header.astro';
 import Footer from '@components/layout/Footer.astro';
 import Tag from '@components/ui/Tag.astro';
 import { formatDate } from '@utils/dates';
-import { calculateReadingTime } from '@utils/content';
+import { calculateReadingTimeFromHtml } from '@utils/content';
+import { getAuthor } from '@data/authors';
 
 interface Props {
   title: string;
   summary: string;
   publishDate: Date;
   updatedDate?: Date;
-  audience: 'developers' | 'executives' | 'both';
-  tags: string[];
+  categories: string[];
   author?: string;
-  authorImage?: string;
-  featured?: boolean;
-  rawContent?: string;
   // Cover image
   image?: string;
   imageCaptionTitle?: string;
   imageCaptionDescription?: string;
-  // Navigation
+  // Navigation (must be passed from page - Astro layouts don't have collection context)
   prevPost?: { slug: string; title: string } | null;
   nextPost?: { slug: string; title: string } | null;
 }
@@ -31,12 +28,8 @@ const {
   summary,
   publishDate,
   updatedDate,
-  audience,
-  tags,
+  categories,
   author,
-  authorImage,
-  featured,
-  rawContent = '',
   image,
   imageCaptionTitle,
   imageCaptionDescription,
@@ -44,16 +37,18 @@ const {
   nextPost,
 } = Astro.props;
 
-const readingTime = calculateReadingTime(rawContent);
+// Get author info from data collection
+const authorInfo = getAuthor(author);
+
+// Calculate reading time from slot content
+const slotContent = await Astro.slots.render('default');
+const readingTime = calculateReadingTimeFromHtml(slotContent);
+
 const publishDateISO = publishDate.toISOString();
 const updatedDateISO = updatedDate?.toISOString();
 
 // Check if post is recent (within 14 days)
 const isRecent = (Date.now() - publishDate.getTime()) < 14 * 24 * 60 * 60 * 1000;
-
-// Default author avatar
-const defaultAvatar = '/images/authors/default-avatar.svg';
-const avatarSrc = authorImage || defaultAvatar;
 
 // Structured data for SEO (JSON-LD)
 const structuredData = {
@@ -64,9 +59,10 @@ const structuredData = {
   image: image,
   datePublished: publishDateISO,
   dateModified: updatedDateISO || publishDateISO,
-  author: author
-    ? { '@type': 'Person', name: author }
-    : { '@type': 'Organization', name: 'iTowns Contributors' },
+  author: {
+    '@type': 'Person',
+    name: authorInfo.name,
+  },
   publisher: {
     '@type': 'Organization',
     name: 'iTowns',
@@ -114,11 +110,11 @@ const structuredData = {
                   class="avatar"
                   width="25"
                   height="25"
-                  src={avatarSrc}
-                  alt={author || 'Author'}
+                  src={authorInfo.image}
+                  alt={authorInfo.name}
                   loading="lazy"
                 />
-                <span class="by" itemprop="author">{author || 'iTowns Contributors'}</span>
+                <span class="by" itemprop="author">{authorInfo.name}</span>
               </div>
 
               <span class:list={['date', { 'post-recent-highlight': isRecent }]} data-post-date={publishDateISO}>
@@ -132,12 +128,12 @@ const structuredData = {
               )}
             </div>
 
-            <!-- Tags -->
-            {tags && tags.length > 0 && (
-              <nav class="tags" aria-label="Post tags">
-                {tags.map((tag) => (
-                  <a href={`/blog/tag/${tag}`} class="tag-link">
-                    <Tag size="sm">{tag}</Tag>
+            <!-- Categories -->
+            {categories && categories.length > 0 && (
+              <nav class="tags" aria-label="Post categories">
+                {categories.map((category) => (
+                  <a href={`/blog/tag/${category}`} class="tag-link">
+                    <Tag size="sm">{category}</Tag>
                   </a>
                 ))}
               </nav>
@@ -155,7 +151,7 @@ const structuredData = {
 
           <!-- Article Body -->
           <div class="article-body" itemprop="articleBody">
-            <slot />
+            <Fragment set:html={slotContent} />
           </div>
 
           <!-- Blog Navigation -->
@@ -550,7 +546,7 @@ const structuredData = {
   /* Back to blog */
   .back-to-blog {
     text-align: center;
-    padding-bottom: var(--space-6);
+    padding-top: var(--space-4);
   }
 
   .back-to-blog a {
